@@ -35,7 +35,7 @@ class OffboardControl(Node):
 
     def arm(self):
         msg = VehicleCommand()
-        msg.command = VehicleCommand.VEHICLE_CMD_ARM_DISARM
+        msg.command = VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM
         msg.target_system = 1
         msg.target_component = 1
         msg.source_system = 1
