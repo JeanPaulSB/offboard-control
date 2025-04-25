@@ -42,7 +42,7 @@ class OffboardControl(Node):
         msg.source_component = 1
         msg.from_external = True
         msg.timestamp = int(Clock().now().nanoseconds / 1000)   
-        self.cmd_pub(msg)
+        self.cmd_pub.publish(msg)
         print("arming drone...")
 
         
