@@ -88,7 +88,7 @@ class OffboardControl(Node):
 
             if len(self.waypoints) > 0:
                 msg.position = [4.0,4.0,4.0]
-                msg.yaw = 0
+                msg.yaw = 0.0
                
                 self.waypoints.pop(0)   
 
