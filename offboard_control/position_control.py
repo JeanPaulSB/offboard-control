@@ -74,8 +74,8 @@ class OffboardControl(Node):
         self.velocity = Vector3()
         self.yaw = 0.0  #yaw value we send as command
         self.trueYaw = 0.0  #current yaw value of drone
-        self.offboardMode = False
-        self.flightCheck = False
+        self.offboardMode = True
+        self.flightCheck = True
         self.myCnt = 0
         self.arm_message = True
         self.failsafe = False
