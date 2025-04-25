@@ -13,6 +13,8 @@ from px4_msgs.msg import VehicleStatus,VehicleCommand, OffboardControlMode
 class OffboardControl(Node):
     def __init__(self):
         super().__init__('minimal_publisher')
+        
+        self.armed = False
 
         qos_profile = QoSProfile(
         reliability=QoSReliabilityPolicy.BEST_EFFORT,
@@ -45,17 +47,12 @@ class OffboardControl(Node):
         
 
     def arm(self):
-        msg = VehicleCommand()
-        msg.command = VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM
-        msg.param1 = 1.0
-        msg.target_system = 1
-        msg.target_component = 1
-        msg.source_system = 1
-        msg.source_component = 1
-        msg.from_external = True
-        msg.timestamp = int(Clock().now().nanoseconds / 1000)   
-        self.cmd_pub.publish(msg)
+        self.send_vehicle_command(VehicleCommand.VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM,param1=1)
+        self.armed = True
         print("Arming drone...")
+
+    def takeoff(self):
+        self.send_vehicle_command(VehicleCommand.VEHICLE_CMD_NAV_TAKEOFF, param1 = 1.0, param7=5.0) 
 
     def publish_offboard_control_mode(self):
         msg = OffboardControlMode()
@@ -67,7 +64,18 @@ class OffboardControl(Node):
         msg.timestamp = int(Clock().now().nanoseconds / 1000)
         self.offboard_mode_pub.publish(msg)
 
-    
+    def send_vehicle_command(self, command, param1=0.0, param2=0.0):
+        msg = VehicleCommand()
+        msg.timestamp = int(Clock().now().nanoseconds / 1000)
+        msg.param1 = param1
+        msg.param2 = param2
+        msg.command = command
+        msg.target_system = 1
+        msg.target_component = 1
+        msg.source_system = 1
+        msg.source_component = 1
+        msg.from_external = True
+        self.cmd_pub(msg)
 
         
     def vehicle_status_callback(self, msg):
@@ -78,19 +86,8 @@ class OffboardControl(Node):
         self.arming_state = msg.arming_state
 
         if msg.arming_state == 2:
-            print("sending wp")
-            self.publish_offboard_control_mode()
-            msg = TrajectorySetpoint()
-            tol = 0.2
-
-            if len(self.waypoints) > 0:
-                msg.position = [4.0,4.0,4.0]
-                msg.yaw = 0.0
-               
-                self.waypoints.pop(0)   
-
-            msg.timestamp = int(Clock().now().nanoseconds / 1000)   # time in microseconds
-            self.trajectory_setpoint_pub.publish(msg) 
+            self.takeoff()
+            print("takingoff")
         else:
             self.arm()
             
