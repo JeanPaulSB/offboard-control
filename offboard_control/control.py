@@ -6,7 +6,7 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDur
 
 from px4_msgs.msg import OffboardControlMode
 from px4_msgs.msg import TrajectorySetpoint
-from px4_msgs.msg import VehicleStatus
+from px4_msgs.msg import VehicleStatus,VehicleCommand
 
 
 class OffboardControl(Node):
@@ -26,6 +26,16 @@ class OffboardControl(Node):
             self.vehicle_status_callback,
             qos_profile)
         
+        self.cmd_pub = self.create_publisher(
+            VehicleCommand,
+            '/fmu/in/vehicle_command',qos_profile
+        )
+        
+
+    def arm(self):
+        msg = VehicleCommand()
+        
+        
     def vehicle_status_callback(self, msg):
         # TODO: handle NED->ENU transformation
         print("NAV_STATUS: ", msg.nav_state)
@@ -33,7 +43,10 @@ class OffboardControl(Node):
         self.nav_state = msg.nav_state
         self.arming_state = msg.arming_state
 
-        print(msg.arming_state)
+        if msg.arming_state == 2:
+            pass
+        else:
+            pass
 
 def main(args=None):
     rclpy.init(args=args)
