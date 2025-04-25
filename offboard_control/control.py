@@ -59,7 +59,7 @@ class OffboardControl(Node):
         msg.attitude = False
         msg.body_rate = False
         msg.timestamp = int(Clock().now().nanoseconds / 1000)
-        self.offboard_control_mode_publisher_.publish(msg)
+        self.offboard_mode_pub.publish(msg)
 
         
     def vehicle_status_callback(self, msg):
