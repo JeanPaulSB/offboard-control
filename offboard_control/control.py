@@ -6,7 +6,8 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDur
 
 from px4_msgs.msg import OffboardControlMode
 from px4_msgs.msg import TrajectorySetpoint
-from px4_msgs.msg import VehicleStatus,VehicleCommand
+from px4_msgs.msg import VehicleStatus,VehicleCommand, OffboardControlMode
+
 
 
 class OffboardControl(Node):
@@ -31,6 +32,10 @@ class OffboardControl(Node):
             '/fmu/in/vehicle_command',qos_profile
         )
 
+        self.offboard_mode_pub = self.create_publisher(
+            OffboardControlMode,
+            '/fmu/in/offboard_control_mode',qos_profile)
+
         
 
     def arm(self):
@@ -44,7 +49,17 @@ class OffboardControl(Node):
         msg.from_external = True
         msg.timestamp = int(Clock().now().nanoseconds / 1000)   
         self.cmd_pub.publish(msg)
-        print("arming drone...")
+        print("Arming drone...")
+
+    def publish_offboard_control_mode(self):
+        msg = OffboardControlMode()
+        msg.position = True
+        msg.velocity = False
+        msg.acceleration = False
+        msg.attitude = False
+        msg.body_rate = False
+        msg.timestamp = int(Clock().now().nanoseconds / 1000)
+        self.offboard_control_mode_publisher_.publish(msg)
 
         
     def vehicle_status_callback(self, msg):
@@ -58,6 +73,7 @@ class OffboardControl(Node):
             pass
         else:
             self.arm()
+            self.publish_offboard_control_mode()
 
 def main(args=None):
     rclpy.init(args=args)
