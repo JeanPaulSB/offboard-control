@@ -30,11 +30,21 @@ class OffboardControl(Node):
             VehicleCommand,
             '/fmu/in/vehicle_command',qos_profile
         )
+
         
 
     def arm(self):
         msg = VehicleCommand()
-        
+        msg.command = VehicleCommand.VEHICLE_CMD_ARM_DISARM
+        msg.target_system = 1
+        msg.target_component = 1
+        msg.source_system = 1
+        msg.source_component = 1
+        msg.from_external = True
+        msg.timestamp = int(Clock().now().nanoseconds / 1000)   
+        self.cmd_pub(msg)
+        print("arming drone...")
+
         
     def vehicle_status_callback(self, msg):
         # TODO: handle NED->ENU transformation
