@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'control_node = offboard_control.control:main',
-            'position_control = offboard_control.position_control:main'
+            'position_control = offboard_control.position_control:main',
+            'keyboard = offboard_control.keyboard:main'
         ],
     },
 )
