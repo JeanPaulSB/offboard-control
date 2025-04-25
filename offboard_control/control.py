@@ -56,7 +56,7 @@ class OffboardControl(Node):
         if msg.arming_state == 2:
             pass
         else:
-            pass
+            self.arm()
 
 def main(args=None):
     rclpy.init(args=args)
