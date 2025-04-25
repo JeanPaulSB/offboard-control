@@ -79,7 +79,7 @@ class OffboardControl(Node):
         self.myCnt = 0
         self.arm_message = False
         self.failsafe = False
-        self.current_state = "IDLE"
+        self.current_state = "ARMING"
         self.last_state = self.current_state
 
 
