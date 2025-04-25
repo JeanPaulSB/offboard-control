@@ -1,0 +1,48 @@
+import rclpy
+import numpy as np
+from rclpy.node import Node
+from rclpy.clock import Clock
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
+
+from px4_msgs.msg import OffboardControlMode
+from px4_msgs.msg import TrajectorySetpoint
+from px4_msgs.msg import VehicleStatus
+
+
+class OffboardControl(Node):
+    def __init__(self):
+        super().__init__('minimal_publisher')
+
+        qos_profile = QoSProfile(
+        reliability=QoSReliabilityPolicy.BEST_EFFORT,
+        durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        history=QoSHistoryPolicy.KEEP_LAST,
+        depth=10
+        )
+
+        self.status_sub = self.create_subscription(
+            VehicleStatus,
+            '/fmu/out/vehicle_status',
+            self.vehicle_status_callback,
+            qos_profile)
+        
+    def vehicle_status_callback(self, msg):
+        # TODO: handle NED->ENU transformation
+        print("NAV_STATUS: ", msg.nav_state)
+        print("  - offboard status: ", VehicleStatus.NAVIGATION_STATE_OFFBOARD)
+        self.nav_state = msg.nav_state
+        self.arming_state = msg.arming_state
+        
+def main(args=None):
+    rclpy.init(args=args)
+
+    offboard_control = OffboardControl()
+
+    rclpy.spin(offboard_control)
+
+    offboard_control.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'control_node = offboard_control.control:main'
         ],
     },
 )
