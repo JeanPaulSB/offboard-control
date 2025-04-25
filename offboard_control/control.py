@@ -64,11 +64,12 @@ class OffboardControl(Node):
         msg.timestamp = int(Clock().now().nanoseconds / 1000)
         self.offboard_mode_pub.publish(msg)
 
-    def send_vehicle_command(self, command, param1=0.0, param2=0.0):
+    def send_vehicle_command(self, command, param1=0.0, param2=0.0,param7=0.0):
         msg = VehicleCommand()
         msg.timestamp = int(Clock().now().nanoseconds / 1000)
         msg.param1 = param1
         msg.param2 = param2
+        msg.param7 = param7
         msg.command = command
         msg.target_system = 1
         msg.target_component = 1
