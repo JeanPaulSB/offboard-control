@@ -32,7 +32,9 @@ class OffboardControl(Node):
         print("  - offboard status: ", VehicleStatus.NAVIGATION_STATE_OFFBOARD)
         self.nav_state = msg.nav_state
         self.arming_state = msg.arming_state
-        
+
+        print(msg.arming_state)
+
 def main(args=None):
     rclpy.init(args=args)
 
