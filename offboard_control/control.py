@@ -75,7 +75,7 @@ class OffboardControl(Node):
         msg.source_system = 1
         msg.source_component = 1
         msg.from_external = True
-        self.cmd_pub(msg)
+        self.cmd_pub.publish(msg)
 
         
     def vehicle_status_callback(self, msg):
