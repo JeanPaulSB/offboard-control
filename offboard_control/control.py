@@ -35,7 +35,13 @@ class OffboardControl(Node):
         self.offboard_mode_pub = self.create_publisher(
             OffboardControlMode,
             '/fmu/in/offboard_control_mode',qos_profile)
+        
+        self.trajectory_setpoint_pub = self.create_publisher(TrajectorySetpoint,
+        "/fmu/in/trajectory_setpoint", qos_profile)
 
+        self.waypoints = [
+            (4,4,4)
+        ]
         
 
     def arm(self):
@@ -61,6 +67,8 @@ class OffboardControl(Node):
         msg.timestamp = int(Clock().now().nanoseconds / 1000)
         self.offboard_mode_pub.publish(msg)
 
+    
+
         
     def vehicle_status_callback(self, msg):
         # TODO: handle NED->ENU transformation
@@ -74,6 +82,22 @@ class OffboardControl(Node):
         else:
             self.arm()
             self.publish_offboard_control_mode()
+
+            msg = TrajectorySetpoint()
+            tol = 0.2
+
+            if len(self.waypoints) > 0:
+                msg.position = [self.waypoints[0][0],self.waypoints[0][1],self.waypoints[0][2]]
+                msg.yaw = 0
+               
+                self.waypoints.pop(0)   
+
+            msg.timestamp = int(Clock().now().nanoseconds / 1000)   # time in microseconds
+            self.trajectory_setpoint_pub.publish(msg) 
+
+
+
+
 
 def main(args=None):
     rclpy.init(args=args)
