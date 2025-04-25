@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'control_node = offboard_control.control:main'
+            'control_node = offboard_control.control:main',
+            'position_control = offboard_control.position_control:main'
         ],
     },
 )
