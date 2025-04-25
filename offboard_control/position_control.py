@@ -77,7 +77,7 @@ class OffboardControl(Node):
         self.offboardMode = False
         self.flightCheck = False
         self.myCnt = 0
-        self.arm_message = False
+        self.arm_message = True
         self.failsafe = False
         self.current_state = "ARMING"
         self.last_state = self.current_state
