@@ -78,11 +78,8 @@ class OffboardControl(Node):
         self.arming_state = msg.arming_state
 
         if msg.arming_state == 2:
-            pass
-        else:
-            self.arm()
+            print("sending wp")
             self.publish_offboard_control_mode()
-
             msg = TrajectorySetpoint()
             tol = 0.2
 
@@ -94,6 +91,11 @@ class OffboardControl(Node):
 
             msg.timestamp = int(Clock().now().nanoseconds / 1000)   # time in microseconds
             self.trajectory_setpoint_pub.publish(msg) 
+        else:
+            self.arm()
+            
+
+           
 
 
 
