@@ -47,7 +47,7 @@ class OffboardControl(Node):
         
 
     def arm(self):
-        self.send_vehicle_command(VehicleCommand.VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM,param1=1)
+        self.send_vehicle_command(VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM,param1=1)
         self.armed = True
         print("Arming drone...")
 
