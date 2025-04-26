@@ -92,6 +92,8 @@ class OffboardControlNode(Node):
         self.target_y = 0.5 # E
         self.target_z = -5.0 # D
         
+        self.current_wp_index = 0
+        self.offboard_wp_counter = 0
        
         self.offboard_counter = 0
         self.nav_state = None
