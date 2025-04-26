@@ -23,29 +23,74 @@ class OffboardControl(Node):
         self.vehicle_command_publisher = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', qos_profile)
         
-        self.vehicle_local_position_subscriber = self.create_subscription(
-            VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
-        self.vehicle_status_subscriber = self.create_subscription(
-            VehicleStatus, '/fmu/out/vehicle_status', self.vehicle_status_callback, qos_profile)
-        
+       
         # Lista de puntos (x, y) especificados, z fijo en -5.0
-        self.points = [(0.0, 0.0), (-1.0, -1.0), (-2.0, -2.0), (-3.0, -3.0), (-4.0, -4.0), (-5.0, -5.0), (-6.0, -6.0), 
-        (-7.0, -7.0), (-8.0, -8.0), (-8.0, -9.0), (-8.0, -10.0), (-8.0, -11.0), (-8.0, -12.0), (-8.0, -13.0), 
-        (-8.0, -14.0), (-8.0, -15.0), (-8.0, -16.0), (-8.0, -17.0), (-8.0, -18.0), (-8.0, -19.0), 
-        (-9.0, -20.0), (-10.0, -20.0), (-11.0, -20.0), (-12.0, -20.0), (-13.0, -20.0), (-14.0, -20.0), 
-        (-15.0, -20.0), (-16.0, -20.0), (-17.0, -20.0), (-18.0, -20.0), (-19.0, -20.0), (-20.0, -20.0), 
-        (-21.0, -20.0), (-22.0, -20.0), (-23.0, -20.0), (-24.0, -20.0), (-25.0, -20.0), (-26.0, -19.0), 
-        (-26.0, -18.0), (-27.0, -17.0), (-27.0, -16.0), (-28.0, -15.0), (-28.0, -14.0), (-29.0, -13.0), 
-        (-29.0, -12.0), (-30.0, -11.0), (-30.0, -10.0), (-30.0, -9.0), (-31.0, -8.0), (-31.0, -7.0), 
-        (-32.0, -6.0), (-32.0, -5.0), (-33.0, -4.0), (-33.0, -3.0), (-34.0, -2.0), (-34.0, -1.0), 
-        (-35.0, 0.0), (-35.0, 1.0)]
+        self.points = [
+        (0.0, 0.0, -5), 
+        (-1.0, -1.0, -5), 
+        (-2.0, -2.0, -5), 
+        (-3.0, -3.0, -5), 
+        (-4.0, -4.0, -5), 
+        (-5.0, -5.0, -5), 
+        (-5.0, -6.0, -5), 
+        (-5.0, -7.0, -5), 
+        (-5.0, -8.0, -5), 
+        (-5.0, -9.0, -5), 
+        (-5.0, -10.0, -5), 
+        (-5.0, -11.0, -5), 
+        (-6.0, -12.0, -5), 
+        (-7.0, -13.0, -5), 
+        (-8.0, -14.0, -5), 
+        (-8.0, -15.0, -5), 
+        (-8.0, -16.0, -5), 
+        (-8.0, -17.0, -5), 
+        (-8.0, -18.0, -5), 
+        (-8.0, -19.0, -5), 
+        (-8.0, -20.0, -5), 
+        (-9.0, -21.0, -5), 
+        (-10.0, -21.0, -5), 
+        (-11.0, -21.0, -5), 
+        (-12.0, -21.0, -5), 
+        (-13.0, -21.0, -5), 
+        (-14.0, -21.0, -5), 
+        (-15.0, -21.0, -5), 
+        (-16.0, -21.0, -5), 
+        (-17.0, -21.0, -5), 
+        (-18.0, -21.0, -5), 
+        (-19.0, -21.0, -5), 
+        (-20.0, -21.0, -5), 
+        (-21.0, -21.0, -5), 
+        (-22.0, -21.0, -5), 
+        (-23.0, -21.0, -5), 
+        (-24.0, -21.0, -5), 
+        (-25.0, -21.0, -5), 
+        (-26.0, -20.0, -5), 
+        (-26.0, -19.0, -5), 
+        (-26.0, -18.0, -5), 
+        (-27.0, -17.0, -5), 
+        (-27.0, -16.0, -5), 
+        (-28.0, -15.0, -5), 
+        (-28.0, -14.0, -5), 
+        (-29.0, -13.0, -5), 
+        (-29.0, -12.0, -5), 
+        (-30.0, -11.0, -5), 
+        (-30.0, -10.0, -5), 
+        (-30.0, -9.0, -5), 
+        (-31.0, -8.0, -5), 
+        (-31.0, -7.0, -5), 
+        (-32.0, -6.0, -5), 
+        (-32.0, -5.0, -5), 
+        (-33.0, -4.0, -5), 
+        (-33.0, -3.0, -5), 
+        (-34.0, -2.0, -5), 
+        (-34.0, -1.0, -5), 
+        (-35.0, 0.0, -5), 
+        (-35.0, 1.0, -5)]
         self.current_index = 0
         self.offboard_setpoint_counter = 0
         self.hold_cycles = 40  # mantener 2 segundos en cada punto
         self.current_hold_counter = 0
 
-        self.vehicle_local_position = VehicleLocalPosition()
-        self.vehicle_status = VehicleStatus()
 
         
         # Crear timer para publicar comandos periódicamente
@@ -127,15 +172,8 @@ class OffboardControl(Node):
             if self.current_hold_counter >= self.hold_cycles:
                 self.current_index += 1
                 self.current_hold_counter = 0
-                
-    def vehicle_local_position_callback(self, vehicle_local_position):
-        """Callback function for vehicle_local_position topic subscriber."""
-        print(vehicle_local_position)
-        self.vehicle_local_position = vehicle_local_position
 
-    def vehicle_status_callback(self, vehicle_status):
-        """Callback function for vehicle_status topic subscriber."""
-        self.vehicle_status = vehicle_status
+  
 
 def main(args=None) -> None:
     print('Iniciando nodo de control OFFBOARD...')
