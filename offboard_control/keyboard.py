@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand
+from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus
 
 class OffboardControl(Node):
     def __init__(self) -> None:
@@ -23,6 +23,11 @@ class OffboardControl(Node):
         self.vehicle_command_publisher = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', qos_profile)
         
+        self.vehicle_local_position_subscriber = self.create_subscription(
+            VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
+        self.vehicle_status_subscriber = self.create_subscription(
+            VehicleStatus, '/fmu/out/vehicle_status', self.vehicle_status_callback, qos_profile)
+        
         # Lista de puntos (x, y) especificados, z fijo en -5.0
         self.points = [(0.0, 0.0), (-1.0, -1.0), (-2.0, -2.0), (-3.0, -3.0), (-4.0, -4.0), (-5.0, -5.0), (-6.0, -6.0), 
         (-7.0, -7.0), (-8.0, -8.0), (-8.0, -9.0), (-8.0, -10.0), (-8.0, -11.0), (-8.0, -12.0), (-8.0, -13.0), 
@@ -38,6 +43,9 @@ class OffboardControl(Node):
         self.offboard_setpoint_counter = 0
         self.hold_cycles = 40  # mantener 2 segundos en cada punto
         self.current_hold_counter = 0
+
+        self.vehicle_local_position = VehicleLocalPosition()
+        self.vehicle_status = VehicleStatus()
 
         
         # Crear timer para publicar comandos periódicamente
@@ -119,7 +127,15 @@ class OffboardControl(Node):
             if self.current_hold_counter >= self.hold_cycles:
                 self.current_index += 1
                 self.current_hold_counter = 0
+                
+    def vehicle_local_position_callback(self, vehicle_local_position):
+        """Callback function for vehicle_local_position topic subscriber."""
+        print(vehicle_local_position)
+        self.vehicle_local_position = vehicle_local_position
 
+    def vehicle_status_callback(self, vehicle_status):
+        """Callback function for vehicle_status topic subscriber."""
+        self.vehicle_status = vehicle_status
 
 def main(args=None) -> None:
     print('Iniciando nodo de control OFFBOARD...')
