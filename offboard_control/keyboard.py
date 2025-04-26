@@ -1,7 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus
+from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand
+from math import sqrt
 
 class OffboardControl(Node):
     def __init__(self) -> None:
@@ -23,78 +24,99 @@ class OffboardControl(Node):
         self.vehicle_command_publisher = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', qos_profile)
         
-       
         # Lista de puntos (x, y) especificados, z fijo en -5.0
-        self.points = [
-        (0.0, 0.0, -5), 
-        (-1.0, -1.0, -5), 
-        (-2.0, -2.0, -5), 
-        (-3.0, -3.0, -5), 
-        (-4.0, -4.0, -5), 
-        (-5.0, -5.0, -5), 
-        (-5.0, -6.0, -5), 
-        (-5.0, -7.0, -5), 
-        (-5.0, -8.0, -5), 
-        (-5.0, -9.0, -5), 
-        (-5.0, -10.0, -5), 
-        (-5.0, -11.0, -5), 
-        (-6.0, -12.0, -5), 
-        (-7.0, -13.0, -5), 
-        (-8.0, -14.0, -5), 
-        (-8.0, -15.0, -5), 
-        (-8.0, -16.0, -5), 
-        (-8.0, -17.0, -5), 
-        (-8.0, -18.0, -5), 
-        (-8.0, -19.0, -5), 
-        (-8.0, -20.0, -5), 
-        (-9.0, -21.0, -5), 
-        (-10.0, -21.0, -5), 
-        (-11.0, -21.0, -5), 
-        (-12.0, -21.0, -5), 
-        (-13.0, -21.0, -5), 
-        (-14.0, -21.0, -5), 
-        (-15.0, -21.0, -5), 
-        (-16.0, -21.0, -5), 
-        (-17.0, -21.0, -5), 
-        (-18.0, -21.0, -5), 
-        (-19.0, -21.0, -5), 
-        (-20.0, -21.0, -5), 
-        (-21.0, -21.0, -5), 
-        (-22.0, -21.0, -5), 
-        (-23.0, -21.0, -5), 
-        (-24.0, -21.0, -5), 
-        (-25.0, -21.0, -5), 
-        (-26.0, -20.0, -5), 
-        (-26.0, -19.0, -5), 
-        (-26.0, -18.0, -5), 
-        (-27.0, -17.0, -5), 
-        (-27.0, -16.0, -5), 
-        (-28.0, -15.0, -5), 
-        (-28.0, -14.0, -5), 
-        (-29.0, -13.0, -5), 
-        (-29.0, -12.0, -5), 
-        (-30.0, -11.0, -5), 
-        (-30.0, -10.0, -5), 
-        (-30.0, -9.0, -5), 
-        (-31.0, -8.0, -5), 
-        (-31.0, -7.0, -5), 
-        (-32.0, -6.0, -5), 
-        (-32.0, -5.0, -5), 
-        (-33.0, -4.0, -5), 
-        (-33.0, -3.0, -5), 
-        (-34.0, -2.0, -5), 
-        (-34.0, -1.0, -5), 
-        (-35.0, 0.0, -5), 
-        (-35.0, 1.0, -5)]
+        def interpolate_path(points, step=0.35):
+            new_path = []
+            for i in range(len(points) - 1):
+                x0, y0 = points[i]
+                x1, y1 = points[i + 1]
+                dx = x1 - x0
+                dy = y1 - y0
+                dist = sqrt(dx*2 + dy*2)
+                num_steps = max(int(dist / step), 1)
+                for j in range(num_steps):
+                    t = j / num_steps
+                    new_path.append((x0 + t * dx, y0 + t * dy))
+            new_path.append(points[-1])  # último punto
+            return new_path
+        self.points = interpolate_path([
+            (x - 0.05, y - 0.05) for x, y in [(14.0, 8.0),
+            (13.993421622064858, 8.3),
+            (13.55125934365837, 8.733393051765384),
+            (13.108821170725916, 8.96630604653423),
+            (12.649041946059826, 8.769829420531416),
+            (12.219660654427111, 9.026016278890351),
+            (12.012716016775116, 9.481179894469502),
+            (11.569390106332863, 9.712398702377827),
+            (11.192291557957219, 10.040722756953459),
+            (10.796077089287468, 10.345704879079898),
+            (10.343714298625432, 10.558702310107728),
+            (10.071711510236453, 10.978243110398498),
+            (9.891157982243012, 11.444505293648568),
+            (9.393876493053435, 11.39243687222639),
+            (8.992620834437743, 11.690755320246097),
+            (8.495985716145475, 11.632845396408943),
+            (8.002510083803472, 11.552335767887497),
+            (7.640444374264667, 11.897166772839432),
+            (7.1414941850344755, 11.929550544502973),
+            (6.955942825368972, 12.393846455454472),
+            (6.478347127738247, 12.245852031219565),
+            (5.981482927064096, 12.301762370947),
+            (5.497234498916165, 12.426275261188362),
+            (4.9978364550284216, 12.401747852823522),
+            (4.634982883134046, 12.74574972107934),
+            (4.625323392852279, 13.245656406619249),
+            (4.525654813173892, 13.73562188930644),
+            (4.312035185620949, 14.187691192316656),
+            (4.122282663421324, 14.650286026181973),
+            (4.507647750275157, 14.968866863386815),
+            (4.19420327219047, 15.358421171742169),
+            (4.122109146303414, 15.853196309570032),
+            (4.110932640020986, 16.35307137966987),
+            (3.8950324503666107, 16.80405597819537),
+            (3.7414071243020257, 17.279870289867002),
+            (3.560388015731832, 17.745951916121946),
+            (3.8995306438493675, 18.11335125987957),
+            (4.136511057247532, 18.55362422482931),
+            (4.038308664519765, 19.04388567554978),
+            (4.509258360595475, 19.21183323809892),
+            (4.891581636567977, 19.53405817917216),
+            (4.821871471331988, 20.029174824885846),
+            (4.839906305282439, 20.528849463790383),
+            (5.2444668625678, 20.822670422009768),
+            (5.744305060463862, 20.809951305530344),
+            (5.943419947804368, 21.26859415311371),
+            (6.336715541359555, 21.57733121938544),
+            (6.578288003632588, 22.015101416488147),
+            (7.078284557397123, 22.01695781719599),
+            (7.498196853924926, 22.28838674569247),
+            (7.897497980179431, 22.58931632312195),
+            (7.776272857523844, 23.074398243664383),
+            (8.227882764015623, 23.288987368175587),
+            (8.642878335411996, 23.567875653554157),
+            (8.89354895667976, 24.000500479047602),
+            (9.140704854130846, 24.435142817476738),
+            (9.57761688698884, 24.678263930389406),
+            (10.014528919846835, 24.921385043302074),
+            (10.381411617112407, 25.261086509956456),
+            (10.820629768396147, 25.500016239339164),
+            (11.291334224952527, 25.668649909102836),
+            (11.768246646945553, 25.51846821331821),
+            (12.168710123370102, 25.817849248205132),
+            (12.64007207397765, 25.98463627263883),
+            (12.950680846351133, 25.592817193822295),
+            (13.370084525843977, 25.865031362498108),
+            (13.528797069542085, 26.339173038026505),
+            (14.01812881627886, 26.441907850215642),
+            (13.978771253734237, 26.94035642556775),
+            (13.75, 27.0)]
+        ])
+
         self.current_index = 0
         self.offboard_setpoint_counter = 0
-        self.hold_cycles = 40  # mantener 2 segundos en cada punto
-        self.current_hold_counter = 0
-
-
         
         # Crear timer para publicar comandos periódicamente
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        self.timer = self.create_timer(0.5, self.timer_callback)
 
     def publish_offboard_control_heartbeat_signal(self) -> None:
         """Publica la señal de modo offboard (latido/heartbeat)."""
@@ -104,7 +126,7 @@ class OffboardControl(Node):
         msg.acceleration = False
         msg.attitude = False
         msg.body_rate = False
-        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        msg.timestamp = int(self.get_clock().now().nanoseconds / 750)
         self.offboard_control_mode_publisher.publish(msg)
 
     def publish_position_setpoint(self, x: float, y: float, z: float) -> None:
@@ -112,7 +134,7 @@ class OffboardControl(Node):
         msg = TrajectorySetpoint()
         msg.position = [x, y, z]
         msg.yaw = 1.57079  # orientación de 90 grados (opcional)
-        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        msg.timestamp = int(self.get_clock().now().nanoseconds / 750)
         self.trajectory_setpoint_publisher.publish(msg)
         self.get_logger().info(f"Publicando setpoint de posición: [{x}, {y}, {z}]")
 
@@ -132,7 +154,7 @@ class OffboardControl(Node):
         msg.source_system = 1
         msg.source_component = 1
         msg.from_external = True
-        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        msg.timestamp = int(self.get_clock().now().nanoseconds / 750)
         self.vehicle_command_publisher.publish(msg)
 
     def arm(self) -> None:
@@ -166,14 +188,14 @@ class OffboardControl(Node):
         if self.current_index < len(self.points):
             x, y = self.points[self.current_index]
             z = -5.0
-            self.publish_position_setpoint(abs(x) -3, abs(y), z)
-            
-            self.current_hold_counter += 1
-            if self.current_hold_counter >= self.hold_cycles:
-                self.current_index += 1
-                self.current_hold_counter = 0
+            self.publish_position_setpoint(x, y, z)
+            self.current_index += 1
+        else:
+            # Una vez alcanzado el último punto, publicar continuamente ese mismo setpoint
+            x, y = self.points[-1]
+            z = -5.0
+            self.publish_position_setpoint(x, y, z)
 
-  
 
 def main(args=None) -> None:
     print('Iniciando nodo de control OFFBOARD...')
