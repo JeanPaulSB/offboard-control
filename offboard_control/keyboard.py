@@ -1,146 +1,116 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
+from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleStatus
 
-class OffboardControl(Node):
-    """Node for controlling a vehicle in offboard mode."""
+class OffboardControlNode(Node):
+    def _init_(self):
 
-    def __init__(self) -> None:
-        super().__init__('offboard_control_takeoff_and_land')
+        super()._init_('offboard_control_node')
 
-        # Configure QoS profile for publishing and subscribing
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=1
+        # Configurar QoS
+        qos = QoSProfile(
+            depth=10,
+            reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
+            history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,
+            durability=QoSDurabilityPolicy.RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL
         )
 
-        # Create publishers
-        self.offboard_control_mode_publisher = self.create_publisher(
-            OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
-        self.trajectory_setpoint_publisher = self.create_publisher(
-            TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos_profile)
-        self.vehicle_command_publisher = self.create_publisher(
-            VehicleCommand, '/fmu/in/vehicle_command', qos_profile)
+        # Suscripción y publicaciones
+        self.status_sub = self.create_subscription(
+            VehicleStatus, '/fmu/out/vehicle_status', self.status_callback, qos)
 
-        # Create subscribers
-        self.vehicle_local_position_subscriber = self.create_subscription(
-            VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
-        self.vehicle_status_subscriber = self.create_subscription(
-            VehicleStatus, '/fmu/out/vehicle_status', self.vehicle_status_callback, qos_profile)
+        self.pub_offboard_mode = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos)
+        self.pub_trajectory = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos)
+        self.pub_cmd = self.create_publisher(VehicleCommand, '/fmu/in/vehicle_command', qos)
 
-        # Initialize variables
-        self.offboard_setpoint_counter = 0
-        self.vehicle_local_position = VehicleLocalPosition()
-        self.vehicle_status = VehicleStatus()
-        self.takeoff_height = -5.0
 
-        # Create a timer to publish control commands
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        # Parámetros o posición objetivo fija (en NED: norte, este, abajo)
+        self.target_x = 10.0   # metros hacia el norte
+        self.target_y = 5.0    # metros hacia el este
+        self.target_z = -5.0   # metros en NED (z negativo = altitud positiva, e.g. 5 m arriba)
+        
+        # Contador de ciclos para delay inicial (se envía OffboardControlMode antes de armar)
+        self.offboard_counter = 0
+        self.nav_state = None
+        self.arming_state = None
 
-    def vehicle_local_position_callback(self, vehicle_local_position):
-        """Callback function for vehicle_local_position topic subscriber."""
-        self.vehicle_local_position = vehicle_local_position
+        # Timer periódica (10 Hz) para enviar mensajes de control
+        timer_period = 0.1  # segundos
+        self.timer = self.create_timer(timer_period, self.timer_callback)
 
-    def vehicle_status_callback(self, vehicle_status):
-        """Callback function for vehicle_status topic subscriber."""
-        self.vehicle_status = vehicle_status
+    def status_callback(self, msg: VehicleStatus):
+        # Almacena estado de navegación y armado
+        self.nav_state = msg.nav_state
+        self.arming_state = msg.arming_state
 
-    def arm(self):
-        """Send an arm command to the vehicle."""
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=1.0)
-        self.get_logger().info('Arm command sent')
+    def timer_callback(self):
+        # Publicar OffboardControlMode en cada ciclo
+        offb = OffboardControlMode()
+        offb.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        offb.position = True       # habilitar control por posición
+        offb.velocity = False
+        offb.acceleration = False
+        offb.attitude = False
+        offb.body_rate = False
+        offb.thrust_and_torque = False
+        offb.direct_actuator = False
+        self.pub_offboard_mode.publish(offb)
 
-    def disarm(self):
-        """Send a disarm command to the vehicle."""
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=0.0)
-        self.get_logger().info('Disarm command sent')
+        # Después de ~10 ciclos, solicitar modo offboard y armado
+        if self.offboard_counter == 10:
+            self.engage_offboard_mode()
+            self.arm_vehicle()
+
+        # Si estamos en OFFBOARD y armado, enviar setpoint de posición objetivo
+        if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and
+            self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
+            traj = TrajectorySetpoint()
+            traj.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+            traj.position = [self.target_x, self.target_y, self.target_z]
+            traj.yaw = 0.0   # ángulo yaw deseado (rad)
+            self.pub_trajectory.publish(traj)
+
+        # Incrementar contador hasta 11 para solo una vez el cambio de modo
+        if self.offboard_counter < 11:
+            self.offboard_counter += 1
 
     def engage_offboard_mode(self):
-        """Switch to offboard mode."""
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_DO_SET_MODE, param1=1.0, param2=6.0)
-        self.get_logger().info("Switching to offboard mode")
+        # Comando para cambiar a modo OFFBOARD
+        cmd = VehicleCommand()
+        cmd.command = VehicleCommand.VEHICLE_CMD_DO_SET_MODE
+        cmd.param1 = 1.0   # 1 = modo personalizado
+        cmd.param2 = 6.0   # 6 = modo offboard (px4)
+        cmd.target_system = 1
+        cmd.target_component = 1
+        cmd.source_system = 1
+        cmd.source_component = 1
+        cmd.from_external = True
+        cmd.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        self.pub_cmd.publish(cmd)
+        self.get_logger().info('Comando: cambiar a modo OFFBOARD')
 
-    def land(self):
-        """Switch to land mode."""
-        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_NAV_LAND)
-        self.get_logger().info("Switching to land mode")
+    def arm_vehicle(self):
+        # Comando para armar (VEHICLE_CMD_COMPONENT_ARM_DISARM)
+        cmd = VehicleCommand()
+        cmd.command = VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM
+        cmd.param1 = 1.0   # 1 = armar, 0 = desarmar
+        cmd.target_system = 1
+        cmd.target_component = 1
+        cmd.source_system = 1
+        cmd.source_component = 1
+        cmd.from_external = True
+        cmd.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        self.pub_cmd.publish(cmd)
+        self.get_logger().info('Comando: ARME enviado')
 
-    def publish_offboard_control_heartbeat_signal(self):
-        """Publish the offboard control mode."""
-        msg = OffboardControlMode()
-        msg.position = True
-        msg.velocity = False
-        msg.acceleration = False
-        msg.attitude = False
-        msg.body_rate = False
-        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
-        self.offboard_control_mode_publisher.publish(msg)
-
-    def publish_position_setpoint(self, x: float, y: float, z: float):
-        """Publish the trajectory setpoint."""
-        msg = TrajectorySetpoint()
-        msg.position = [x, y, z]
-        msg.yaw = 1.57079  # (90 degree)
-        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
-        self.trajectory_setpoint_publisher.publish(msg)
-        self.get_logger().info(f"Publishing position setpoints {[x, y, z]}")
-
-    def publish_vehicle_command(self, command, **params) -> None:
-        """Publish a vehicle command."""
-        msg = VehicleCommand()
-        msg.command = command
-        msg.param1 = params.get("param1", 0.0)
-        msg.param2 = params.get("param2", 0.0)
-        msg.param3 = params.get("param3", 0.0)
-        msg.param4 = params.get("param4", 0.0)
-        msg.param5 = params.get("param5", 0.0)
-        msg.param6 = params.get("param6", 0.0)
-        msg.param7 = params.get("param7", 0.0)
-        msg.target_system = 1
-        msg.target_component = 1
-        msg.source_system = 1
-        msg.source_component = 1
-        msg.from_external = True
-        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
-        self.vehicle_command_publisher.publish(msg)
-
-    def timer_callback(self) -> None:
-        """Callback function for the timer."""
-        self.publish_offboard_control_heartbeat_signal()
-
-        if self.offboard_setpoint_counter == 10:
-            self.engage_offboard_mode()
-            self.arm()
-
-        if self.vehicle_local_position.z > self.takeoff_height and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
-            self.publish_position_setpoint(0.0, 0.0, self.takeoff_height)
-
-        elif self.vehicle_local_position.z <= self.takeoff_height:
-            self.land()
-            exit(0)
-
-        if self.offboard_setpoint_counter < 11:
-            self.offboard_setpoint_counter += 1
-
-
-def main(args=None) -> None:
-    print('Starting offboard control node...')
+def main(args=None):
     rclpy.init(args=args)
-    offboard_control = OffboardControl()
-    rclpy.spin(offboard_control)
-    offboard_control.destroy_node()
+    node = OffboardControlNode()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
-
-if __name__ == '__main__':
-    try:
-        main()
-    except Exception as e:
-        print(e)
+if __name__ == '_main_':
+    main()
