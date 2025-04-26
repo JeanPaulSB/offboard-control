@@ -127,15 +127,19 @@ class OffboardControlNode(Node):
         
         if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and
             self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
-            traj = TrajectorySetpoint()
-            traj.timestamp = int(self.get_clock().now().nanoseconds / 1000)
-            traj.position = self.waypoints[-1]
-            traj.yaw = 0.0   
-            self.pub_trajectory.publish(traj)
 
-        if self.offboard_counter < 11:
-            self.offboard_counter += 1
+            if self.current_wp_index < len(self.waypoints):
+                x, y, z = self.waypoints[self.current_wp_index]
+                self.publish_position_setpoint(x, y, z)
+                self.current_wp_index += 1
+            else:
+                # Último setpoint permanente
+                x, y, z = self.waypoints[-1]
+                self.publish_position_setpoint(x, y, z)
 
+   
+
+            
     def engage_offboard_mode(self):
 
         cmd = VehicleCommand()
