@@ -4,8 +4,8 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand
 
 class OffboardControl(Node):
-    def _init_(self) -> None:
-        super()._init_('offboard_control')
+    def __init__(self) -> None:
+        super().__init__('offboard_control')
         
         # Configurar perfil QoS para publicaciones
         qos_profile = QoSProfile(
@@ -190,7 +190,7 @@ def main(args=None) -> None:
     rclpy.shutdown()
 
 
-if _name_ == '_main_':
+if __name__ == '_main_':
     try:
         main()
     except KeyboardInterrupt:
